@@ -64,6 +64,9 @@ class DoubanIdListSpider(CrawlSpider):
         self.id_list.insert_one(dict(item))
 
     def start_requests(self):
+        # reset the status
+        self.tag_list.update_many({"state":1},{"$set":{"state":0}})
+
         initial_tags = [u'爱情',u'剧情',u'喜剧',u'科幻']
         initial_requests = []
         for tag in initial_tags:
@@ -71,14 +74,17 @@ class DoubanIdListSpider(CrawlSpider):
             if tag_item is None:
                 self.add_tag(tag)
                 initial_requests.append(Request(self.tag_url_pattern.format(tag,0),callback=self.parse,cookies=self.cookie,meta=self.meta))
-            elif tag_item['state'] <= 1:
+            elif tag_item['state'] < 1:
                 initial_requests.append(Request(self.tag_url_pattern.format(tag, tag_item['page']*self.batch_size),callback=self.parse,cookies=self.cookie,meta=self.meta))
+                self.tag_list.update_one({"tag":tag},{"$set":{"state":1}})
         
         # try to find in db
         if len(initial_requests) < self.max_tag_in_list:
-            for tag_item in self.tag_list.find({'state':{"$lte":1}}):
+            for tag_item in self.tag_list.find({'state':{"$eq":0}}):
                 if tag_item['tag'] not in initial_tags:
                     initial_requests.append(Request(self.tag_url_pattern.format(tag_item['tag'], int(tag_item['page']*self.batch_size)),callback=self.parse,cookies=self.cookie,meta=self.meta))
+                    initial_tags.append(tag_item['tag'])
+                    self.tag_list.update_one({"tag":tag_item['tag']},{"$set":{"state":1}})
                 if len(initial_requests) == self.max_tag_in_list:
                     break
         return initial_requests[:self.max_tag_in_list]
@@ -119,7 +125,7 @@ class DoubanIdListSpider(CrawlSpider):
             print(u'finish process tag %s'%(tag))
             self.tag_list.find_one_and_update({'tag':tag},{'$set':{'state':2}})
             #find an random tag
-            un_mined_tag = self.tag_list.find_one({'state':{"$lte":1}})
+            un_mined_tag = self.tag_list.find_one({'state':{"$eq":0}})
             if un_mined_tag:
                 print(u"go to mine tag %s from page %d"%(un_mined_tag['tag'], un_mined_tag['page']))
                 yield Request(self.tag_url_pattern.format(un_mined_tag['tag'],int(un_mined_tag['page']*self.batch_size)),callback=self.parse,cookies=self.cookie,meta=self.meta)
