@@ -121,7 +121,7 @@ class DoubanIdListSpider(CrawlSpider):
         if tag is None:
             return 
         
-        if this_page_num is None and no_content and u"没有找到符合条件的电影" in no_content:
+        if this_page_num is None and (no_content and u"没有找到符合条件的电影" in no_content or no_content is None):
             print(u'finish process tag %s'%(tag))
             self.tag_list.find_one_and_update({'tag':tag},{'$set':{'state':2}})
             #find an random tag
