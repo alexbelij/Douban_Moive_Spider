@@ -209,11 +209,9 @@ class DoubanMovieSpider(CrawlSpider):
             except:
                 pass
             
-            desc = response.xpath("//span[@property='v:summary']").extract_first()
-            desc = desc.xpath('string(.)')
+            desc = response.xpath("//span[@property='v:summary']").xpath("string(.)").extract_first()
             desc = desc.strip() if desc else u""
-            desc_all = response.xpath("//span[@class='all hidden']").extract_first()
-            desc_all = desc_all.xpath('string(.)')
+            desc_all = response.xpath("//span[@class='all hidden']").xpath("string(.)").extract_first()
             item["movie_desc"] = desc_all.strip() if desc_all else desc
             
             tags = response.xpath("//div[@class='tags-body']/a/text()").extract()
