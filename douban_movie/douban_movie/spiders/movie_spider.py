@@ -7,6 +7,7 @@ from douban_movie.items import DoubanMovieItem, DoubanShortComment
 import re
 import logging
 from pymongo import MongoClient
+from scrapy.conf import settings
 
 # pattern define
 lang_pattern_str =  ".*语言:</span> (.+?)<br>".decode("utf8")
@@ -32,7 +33,7 @@ class DoubanMovieSpider(CrawlSpider):
     def __init__(self,*a,**kw):
         super(DoubanMovieSpider,self).__init__(*a,**kw)
         client = MongoClient()
-        db = self.client.movie
+        db = client.movie
         self.id_list = db.id_list
         self.fail_list = db.fail_list
         self.movies = db.movies
@@ -88,17 +89,17 @@ class DoubanMovieSpider(CrawlSpider):
 
     def parse_comments(self, response):
 
-        rate_mapping = {"很差":1,"较差":2,"还行":3,"推荐":4,"力荐":5}
+        rate_mapping = {u"很差":1,u"较差":2,u"还行":3,u"推荐":4,u"力荐":5}
         url = response.url
         movie_id = url.split('/')[-2].strip() 
 
         comments = response.xpath("//div[@class='comment']")
         for comment in comments:
-            vote = comment.xpath("span[@class='votes']/text()").extract_first()
-            user_name = comment.xpath("span[@class='comment-info']/a/text()").extract_first()
-            rate = comment.xpath("span[@class='comment-info']//span[starts-with(@class,'all')]/@title").extract_first()
+            vote = comment.xpath(".//span[@class='votes']/text()").extract_first()
+            user_name = comment.xpath(".//span[@class='comment-info']/a/text()").extract_first()
+            rate = comment.xpath(".//span[@class='comment-info']//span[starts-with(@class,'all')]/@title").extract_first()
             rate = rate_mapping.get(rate,'0')
-            short_comment = comment.xpath("p/text()").extract_first()
+            short_comment = comment.xpath(".//p/text()").extract_first()
 
             item = DoubanShortComment()
             item['movie_id'] = movie_id
@@ -109,7 +110,7 @@ class DoubanMovieSpider(CrawlSpider):
 
             self.comments.insert_one(dict(item))
 
-        print("add {0} comments of movie id {1}".format(len(comments),movie_id))
+        print(u"add {0} comments of movie id {1}".format(len(comments),movie_id))
 
 
     def parse(self, response):
@@ -129,13 +130,13 @@ class DoubanMovieSpider(CrawlSpider):
                 
             # get movie name
             name = response.xpath('//div[@id="content"]/h1/span[1]/text()').extract_first()
-            item["movie_name"] = name.strip() if name else ""
+            item["movie_name"] = name.strip() if name else u""
             
             print(u"start to mine movie %s with id %s"%(name,movie_id))
             
             #get movie year
             year = response.xpath('//div[@id="content"]/h1/span[2]/text()').extract_first()
-            item["movie_year"] = year.strip("（）() ") if year else ""
+            item["movie_year"] = year.strip(u"（）() ") if year else u""
             
             # get movie rate
             rate = response.xpath("//div[@class='rating_self clearfix']/strong/text()").extract_first()
@@ -162,7 +163,7 @@ class DoubanMovieSpider(CrawlSpider):
             # get movie info
             info = response.xpath("//div[@id='info']")
             infoarray = info.extract()
-            infostr = ''.join(infoarray).strip()
+            infostr = u''.join(infoarray).strip()
             
             #same region for movie and episode
             director = info.xpath("span[1]/span[2]/a/text()").extract()
@@ -206,7 +207,7 @@ class DoubanMovieSpider(CrawlSpider):
                 pass
             
             desc = response.xpath("//span[@property='v:summary']/node()").extract_first()
-            desc = desc.strip() if desc else ""
+            desc = desc.strip() if desc else u""
             desc_all = response.xpath("//span[@class='all hidden']/text()").extract_first()
             item["movie_desc"] = desc_all.strip() if desc_all else desc
             
@@ -242,7 +243,7 @@ class DoubanMovieSpider(CrawlSpider):
             
                         
         except Exception as e:
-            logging.info("failed movie: %s, Parse error:%s"%(item['movie_id'],str(e)))
+            logging.info(u"failed movie: %s, Parse error:%s"%(item['movie_id'],str(e)))
 
             fail_item = self.fail_list.find_one({"movie_id":item['movie_id']})
             if fail_item is not None:
