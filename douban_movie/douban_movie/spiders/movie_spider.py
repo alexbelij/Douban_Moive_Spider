@@ -26,6 +26,7 @@ single_time_pattern = re.compile(single_time_pattern_str,re.S)
 class DoubanMovieSpider(CrawlSpider):
     name = "doubanmovie"
     allowed_domain = ["movie.douban.com"]
+    handle_httpstatus_list = [404, 500, 400]
     
     movie_url_pattern  = u"https://movie.douban.com/subject/{0}/"
     comment_url_pattern = u'https://movie.douban.com/subject/{0}/comments?sort=new_score&status=P'
@@ -116,6 +117,10 @@ class DoubanMovieSpider(CrawlSpider):
     def parse(self, response):
         item = DoubanMovieItem()
         try:
+            if response.status in self.handle_httpstatus_list:
+                print("Got status code {0}, continue to crawl other page".format(response.status))
+                raise Exception("error status code {0}".format(response.status))
+                
             is_episoder = False
             episodestr = response.xpath("//div[@class='episode_list']")
             if episodestr:
