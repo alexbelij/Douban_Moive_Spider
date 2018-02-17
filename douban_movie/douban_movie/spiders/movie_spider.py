@@ -131,6 +131,9 @@ class DoubanMovieSpider(CrawlSpider):
             # get movie name
             name = response.xpath('//div[@id="content"]/h1/span[1]/text()').extract_first()
             item["movie_name"] = name.strip() if name else u""
+
+            if name is None or not name:
+                raise Exception(u"Can not get title of movie id {0}".format(movie_id))
             
             print(u"start to mine movie %s with id %s"%(name,movie_id))
             
@@ -206,9 +209,11 @@ class DoubanMovieSpider(CrawlSpider):
             except:
                 pass
             
-            desc = response.xpath("//span[@property='v:summary']/node()").extract_first()
+            desc = response.xpath("//span[@property='v:summary']").extract_first()
+            desc = desc.xpath('string(.)')
             desc = desc.strip() if desc else u""
-            desc_all = response.xpath("//span[@class='all hidden']/text()").extract_first()
+            desc_all = response.xpath("//span[@class='all hidden']").extract_first()
+            desc_all = desc_all.xpath('string(.)')
             item["movie_desc"] = desc_all.strip() if desc_all else desc
             
             tags = response.xpath("//div[@class='tags-body']/a/text()").extract()
