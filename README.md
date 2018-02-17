@@ -5,7 +5,7 @@ A douban movie spider based on scrapy. This project contains two spiders:
 - movie id spider: using tags to crawl movie ids from the web
 - movie info spider: using movie ids to crawl movie details
 
-> This code is not optimized for performance, it calls the database in each request. And to avoid to be banned by the douban, I have set the download delay to be 1s and used the AutoThrottle module. Since the number of movies in douban is about 100k(I guess :), but the number must be less than 500K), so the speed is OK, you just need to run and wait.
+> This code is not optimized for performance, it calls the database in each request. And to avoid to be banned by the douban, I have set the download delay to be 1s and used the AutoThrottle module. Since the number of movies in douban is about 200k, so the speed is OK, you just need to run and wait.
 
 ## Prerequisite
 
@@ -46,4 +46,7 @@ scrapy crawl doubanidlist
 ```
 
 ### Get the movie info
-'doubanmovie' spider is under development.
+Run the doubanmovie spider to crawl the movie info by movie id:
+```
+scrapy crawl doubanmovie
+```
