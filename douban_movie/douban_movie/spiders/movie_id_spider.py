@@ -119,9 +119,14 @@ class DoubanIdListSpider(CrawlSpider):
         no_content = response.xpath("//div[@class='article']//p[@class='pl2']/text()").extract_first()
         tag = response.xpath("//span[@class='tags-name']/text()").extract_first()
         if tag is None:
-            return 
+            un_mined_tag = self.tag_list.find_one({'state':{"$eq":0}})
+            if un_mined_tag:
+                print(u"go to mine tag %s from page %d"%(un_mined_tag['tag'], un_mined_tag['page']))
+                yield Request(self.tag_url_pattern.format(un_mined_tag['tag'],int(un_mined_tag['page']*self.batch_size)),callback=self.parse,cookies=self.cookie,meta=self.meta)
+                return
+             
         
-        if this_page_num is None and (no_content and u"没有找到符合条件的电影" in no_content or no_content is None):
+        if this_page_num is None and ((no_content and u"没有找到符合条件的电影" in no_content) or no_content is None):
             print(u'finish process tag %s'%(tag))
             self.tag_list.find_one_and_update({'tag':tag},{'$set':{'state':2}})
             #find an random tag

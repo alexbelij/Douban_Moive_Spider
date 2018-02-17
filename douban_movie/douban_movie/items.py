@@ -30,7 +30,11 @@ class DoubanMovieIdItem(scrapy.Item):
     description = Field()
 
 class DoubanShortComment(scrapy.Item):
-    pass
+    movie_id = Field()
+    user_name = Field()
+    comment = Field()
+    rate = Field()
+    vote = Field()
 
 
 class FailItem(scrapy.Item):

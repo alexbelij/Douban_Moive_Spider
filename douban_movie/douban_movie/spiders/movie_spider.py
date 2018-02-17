@@ -3,7 +3,7 @@ from scrapy.spiders import CrawlSpider,Rule
 from scrapy.http import Request
 from scrapy.selector import HtmlXPathSelector
 from scrapy.linkextractors import LinkExtractor
-from douban_movie.items import DoubanMovieItem
+from douban_movie.items import DoubanMovieItem, DoubanShortComment
 import re
 import logging
 from pymongo import MongoClient
@@ -27,6 +27,7 @@ class DoubanMovieSpider(CrawlSpider):
     allowed_domain = ["movie.douban.com"]
     
     movie_url_pattern  = u"https://movie.douban.com/subject/{0}/"
+    comment_url_pattern = u'https://movie.douban.com/subject/{0}/comments?sort=new_score&status=P'
     
     def __init__(self,*a,**kw):
         super(DoubanMovieSpider,self).__init__(*a,**kw)
@@ -35,6 +36,7 @@ class DoubanMovieSpider(CrawlSpider):
         self.id_list = db.id_list
         self.fail_list = db.fail_list
         self.movies = db.movies
+        self.comments = db.comments
 
         self.max_id_in_list = 5
         self.max_retry_times = 5
@@ -54,7 +56,7 @@ class DoubanMovieSpider(CrawlSpider):
 
     def add_movie(self, item):
         if self.movies.find_one({"movie_id":item['movie_id']}):
-            print("Movie {0} is already in database".format(item['movie_id']))
+            print(u"Movie {0} is already in database".format(item['movie_id']))
         else:
             self.movies.insert_one(dict(item))
 
@@ -84,6 +86,32 @@ class DoubanMovieSpider(CrawlSpider):
         for x in arr:
             item[name].append(x.strip())
 
+    def parse_comments(self, response):
+
+        rate_mapping = {"很差":1,"较差":2,"还行":3,"推荐":4,"力荐":5}
+        url = response.url
+        movie_id = url.split('/')[-2].strip() 
+
+        comments = response.xpath("//div[@class='comment']")
+        for comment in comments:
+            vote = comment.xpath("span[@class='votes']/text()").extract_first()
+            user_name = comment.xpath("span[@class='comment-info']/a/text()").extract_first()
+            rate = comment.xpath("span[@class='comment-info']//span[starts-with(@class,'all')]/@title").extract_first()
+            rate = rate_mapping.get(rate,'0')
+            short_comment = comment.xpath("p/text()").extract_first()
+
+            item = DoubanShortComment()
+            item['movie_id'] = movie_id
+            item['vote'] = vote
+            item['user_name'] = user_name
+            item['comment'] = short_comment
+            item['rate'] = rate
+
+            self.comments.insert_one(dict(item))
+
+        print("add {0} comments of movie id {1}".format(len(comments),movie_id))
+
+
     def parse(self, response):
         item = DoubanMovieItem()
         try:
@@ -103,7 +131,7 @@ class DoubanMovieSpider(CrawlSpider):
             name = response.xpath('//div[@id="content"]/h1/span[1]/text()').extract_first()
             item["movie_name"] = name.strip() if name else ""
             
-            print("start to mine movie %s with id %s"%(name,movie_id))
+            print(u"start to mine movie %s with id %s"%(name,movie_id))
             
             #get movie year
             year = response.xpath('//div[@id="content"]/h1/span[2]/text()').extract_first()
@@ -204,6 +232,9 @@ class DoubanMovieSpider(CrawlSpider):
                 item['episode_num'] = 1                
                 time = info.xpath("span[@property='v:runtime']/@content").extract_first()
                 item["movie_time"] = float(time.strip() if time else "-1")
+
+            # parse short comment
+            yield Request(self.comment_url_pattern.format(movie_id), callback=self.parse_comments, cookies=self.cookie, meta=self.meta)
             
             self.add_movie(item)
             movie_id = self.get_next_unparsed_movie()
