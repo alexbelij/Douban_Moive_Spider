@@ -26,7 +26,7 @@ single_time_pattern = re.compile(single_time_pattern_str,re.S)
 class DoubanMovieSpider(CrawlSpider):
     name = "doubanmovie"
     allowed_domain = ["movie.douban.com"]
-    handle_httpstatus_list = [404, 500, 400]
+    handle_httpstatus_list = [404, 500, 400, 301, 302]
     
     movie_url_pattern  = u"https://movie.douban.com/subject/{0}/"
     comment_url_pattern = u'https://movie.douban.com/subject/{0}/comments?sort=new_score&status=P'
@@ -53,7 +53,7 @@ class DoubanMovieSpider(CrawlSpider):
         # 对请求的返回进行处理的配置
         self.meta = {
             'dont_redirect': True,  # 禁止网页重定向
-            'handle_httpstatus_list': [301, 302]  # 对哪些异常返回进行处理
+            'handle_httpstatus_list': self.handle_httpstatus_list # 对哪些异常返回进行处理
         }
 
     def add_movie(self, item):
@@ -116,6 +116,10 @@ class DoubanMovieSpider(CrawlSpider):
 
     def parse(self, response):
         item = DoubanMovieItem()
+        # get movie id
+        url = response.url
+        movie_id = url.split('/')[-2].strip()
+        item["movie_id"] = movie_id
         try:
             if response.status in self.handle_httpstatus_list:
                 print("Got status code {0}, continue to crawl other page".format(response.status))
@@ -129,9 +133,9 @@ class DoubanMovieSpider(CrawlSpider):
             item['is_episode'] = is_episoder
             
             # get movie id
-            url = response.url
-            movie_id = url.split('/')[-2].strip() 
-            item["movie_id"] = movie_id
+            #url = response.url
+            #movie_id = url.split('/')[-2].strip() 
+            #item["movie_id"] = movie_id
                 
             # get movie name
             name = response.xpath('//div[@id="content"]/h1/span[1]/text()').extract_first()
